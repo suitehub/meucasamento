@@ -1,0 +1,6 @@
+{
+  "name": "Meu Casamento",
+  "description": "Gerenciador financeiro de casamento com controle mensal do cofrinho e cotações de fornecedores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
