@@ -32,26 +32,40 @@ export default function App() {
 
   // Ref to track if data change is from local user interaction vs cloud sync
   const isCloudSyncRef = useRef(false);
+  // Ref to track whether initial cloud data has been loaded for current user
+  const isInitialCloudLoadedRef = useRef(false);
 
   // Monitor Firebase auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (!currentUser) {
+        isInitialCloudLoadedRef.current = false;
+      }
     });
     return () => unsubscribe();
   }, []);
 
   // Listen to Firestore real-time updates when user is logged in
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      isInitialCloudLoadedRef.current = false;
+      return;
+    }
 
-    const unsubscribe = subscribeToWedding(user.uid, (cloudState) => {
-      isCloudSyncRef.current = true;
-      setState(cloudState);
-      saveState(cloudState);
-      setTimeout(() => {
-        isCloudSyncRef.current = false;
-      }, 300);
+    const unsubscribe = subscribeToWedding(user.uid, (cloudState, exists) => {
+      if (exists) {
+        isCloudSyncRef.current = true;
+        setState(cloudState);
+        saveState(cloudState);
+        isInitialCloudLoadedRef.current = true;
+        setTimeout(() => {
+          isCloudSyncRef.current = false;
+        }, 300);
+      } else {
+        isInitialCloudLoadedRef.current = true;
+        saveWeddingToFirestore(user.uid, state);
+      }
     });
 
     return () => unsubscribe();
@@ -61,7 +75,7 @@ export default function App() {
   useEffect(() => {
     saveState(state);
 
-    if (user && !isCloudSyncRef.current) {
+    if (user && isInitialCloudLoadedRef.current && !isCloudSyncRef.current) {
       saveWeddingToFirestore(user.uid, state);
     }
   }, [state, user]);
@@ -74,20 +88,7 @@ export default function App() {
   };
 
   const handleLogin = async (username: string, pass: string) => {
-    const loggedUser = await signInWithCredentials(username, pass);
-    if (loggedUser) {
-      const cloudData = await getWeddingFromFirestore(loggedUser.uid);
-      if (cloudData) {
-        isCloudSyncRef.current = true;
-        setState(cloudData);
-        saveState(cloudData);
-        setTimeout(() => {
-          isCloudSyncRef.current = false;
-        }, 300);
-      } else {
-        await saveWeddingToFirestore(loggedUser.uid, state);
-      }
-    }
+    await signInWithCredentials(username, pass);
   };
 
   const handleImportBackup = (newState: AppState) => {

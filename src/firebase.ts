@@ -108,32 +108,38 @@ export async function signInWithCredentials(username: string, pass: string): Pro
   const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   const userAccount = cleanUsername || 'casamento';
   const email = `${userAccount}@meucasamento.app`;
-  const password = pass.trim() || '261223';
+  let password = pass.trim() || '261223';
+  if (password.length < 6) {
+    password = password.padEnd(6, '0');
+  }
 
   try {
-    // Attempt sign in
     const result = await signInWithEmailAndPassword(auth, email, password);
     return result.user;
   } catch (err: any) {
-    // If user doesn't exist, create account automatically
-    if (
-      err.code === 'auth/user-not-found' ||
-      err.code === 'auth/invalid-credential' ||
-      err.code === 'auth/wrong-password'
-    ) {
-      try {
-        const createRes = await createUserWithEmailAndPassword(auth, email, password);
-        return createRes.user;
-      } catch (createErr) {
-        console.warn('Erro ao criar conta com email, tentando modo anônimo:', createErr);
+    console.warn('signInWithEmailAndPassword failed, creating account...', err?.code || err);
+    try {
+      const createRes = await createUserWithEmailAndPassword(auth, email, password);
+      return createRes.user;
+    } catch (createErr: any) {
+      console.warn('createUserWithEmailAndPassword failed:', createErr?.code || createErr);
+      if (createErr.code === 'auth/email-already-in-use') {
+        try {
+          const retryRes = await signInWithEmailAndPassword(auth, email, password);
+          return retryRes.user;
+        } catch (retryErr) {
+          console.error('Retry sign in failed:', retryErr);
+          alert('Senha incorreta para a conta "' + userAccount + '".');
+          return null;
+        }
       }
     }
-    // Fallback: If Email/Password auth is disabled in Firebase console, use anonymous auth
+    // Fallback if Email/Password provider is disabled in Firebase console
     try {
       const anonRes = await signInAnonymously(auth);
       return anonRes.user;
     } catch (anonErr) {
-      console.error('Erro no login anônimo:', anonErr);
+      console.error('Erro de login:', anonErr);
       alert('Não foi possível realizar o login. Tente novamente.');
       return null;
     }
@@ -198,7 +204,7 @@ export async function getWeddingFromFirestore(userId: string): Promise<AppState 
 
 export function subscribeToWedding(
   userId: string,
-  onData: (state: AppState) => void,
+  onData: (state: AppState, exists: boolean) => void,
   onError?: (err: unknown) => void
 ): () => void {
   const docRef = doc(db, 'weddings', userId);
@@ -208,12 +214,33 @@ export function subscribeToWedding(
       if (snapshot.exists()) {
         const data = snapshot.data();
         if (data && data.config) {
-          onData({
-            config: data.config,
-            entries: data.entries || {},
-            budgets: Array.isArray(data.budgets) ? data.budgets : [],
-          });
+          onData(
+            {
+              config: data.config,
+              entries: data.entries || {},
+              budgets: Array.isArray(data.budgets) ? data.budgets : [],
+            },
+            true
+          );
+        } else {
+          onData(
+            {
+              config: data.config || ({} as any),
+              entries: {},
+              budgets: [],
+            },
+            false
+          );
         }
+      } else {
+        onData(
+          {
+            config: {} as any,
+            entries: {},
+            budgets: [],
+          },
+          false
+        );
       }
     },
     (error) => {

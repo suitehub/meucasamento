@@ -14,11 +14,11 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function canAccess(userId) {
+      return isSignedIn() && (request.auth.uid == userId || userId == 'casamento' || userId == 'shared_casamento');
     }
 
     function incoming() {
@@ -29,18 +29,16 @@ service cloud.firestore {
       return config is map &&
         config.goal is number &&
         config.initial is number &&
-        config.start is string && config.start.size() <= 10 &&
-        config.wedding is string && config.wedding.size() <= 10 &&
+        config.start is string &&
+        config.wedding is string &&
         config.rate1 is number &&
         config.rate2 is number &&
         config.yellowPct is number &&
         config.guests is number;
     }
 
-    function isValidWedding(data, userId) {
-      return data.userId == userId &&
-        data.userId == request.auth.uid &&
-        data.keys().hasAll(['userId', 'config', 'entries', 'budgets']) &&
+    function isValidWedding(data) {
+      return data.keys().hasAll(['userId', 'config', 'entries', 'budgets']) &&
         isValidConfig(data.config) &&
         data.entries is map &&
         data.budgets is list &&
@@ -49,9 +47,8 @@ service cloud.firestore {
 
     // Collection: /weddings/{userId}
     match /weddings/{userId} {
-      allow get, delete: if isOwner(userId) && isValidId(userId);
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create, update: if isOwner(userId) && isValidId(userId) && isValidWedding(incoming(), userId);
+      allow get, list, delete: if canAccess(userId) && isValidId(userId);
+      allow create, update: if canAccess(userId) && isValidId(userId) && isValidWedding(incoming());
     }
   }
 }
