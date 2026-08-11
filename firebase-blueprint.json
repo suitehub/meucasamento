@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "Config": {
+      "title": "Configuração do Casamento",
+      "description": "Configurações e metas financeiras do evento de casamento",
+      "type": "object",
+      "properties": {
+        "goal": { "type": "number", "description": "Meta total acumulada para o casamento" },
+        "initial": { "type": "number", "description": "Valor inicial já guardado" },
+        "start": { "type": "string", "maxLength": 7, "description": "Mês inicial no formato YYYY-MM" },
+        "wedding": { "type": "string", "maxLength": 7, "description": "Mês do casamento no formato YYYY-MM" },
+        "rate1": { "type": "number", "description": "Meta mensal de economia em 2026" },
+        "rate2": { "type": "number", "description": "Meta mensal de economia a partir de 2027" },
+        "yellowPct": { "type": "number", "description": "Porcentagem do limite de alerta amarelo" },
+        "guests": { "type": "number", "description": "Quantidade total estimada de convidados" }
+      },
+      "required": ["goal", "initial", "start", "wedding", "rate1", "rate2", "yellowPct", "guests"]
+    },
+    "BudgetItem": {
+      "title": "Item de Orçamento",
+      "description": "Item de fornecedor ou serviço orçado para o casamento",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "description": "Identificador único do fornecedor/item" },
+        "category": { "type": "string", "maxLength": 100, "description": "Categoria do orçamento" },
+        "vendor": { "type": "string", "maxLength": 200, "description": "Nome do fornecedor" },
+        "pricingType": { "type": "string", "enum": ["per_person", "fixed"], "description": "Tipo de cobrança" },
+        "baseValue": { "type": "number", "description": "Valor base ou valor por pessoa" },
+        "people": { "type": "number", "description": "Quantidade de pessoas orçadas" },
+        "notes": { "type": "string", "maxLength": 500, "description": "Observações adicionais" }
+      },
+      "required": ["id", "category", "vendor", "pricingType", "baseValue", "people"]
+    },
+    "WeddingData": {
+      "title": "Dados Completos do Casamento",
+      "description": "Documento único por usuário contendo a configuração, depósitos mensais e lista de orçamentos",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "description": "ID do usuário proprietário" },
+        "config": { "$ref": "#/entities/Config" },
+        "entries": { "type": "object", "description": "Mapeamento dos depósitos por mês (ex: '2026-03': 500)" },
+        "budgets": { "type": "array", "description": "Lista de orçamentos de fornecedores" },
+        "updatedAt": { "type": "string", "description": "Data/hora da última atualização" }
+      },
+      "required": ["userId", "config", "entries", "budgets"]
+    }
+  },
+  "firestore": {
+    "/weddings/{userId}": {
+      "schema": "#/entities/WeddingData",
+      "description": "Coleção com os dados de casamento do usuário logado"
+    }
+  }
+}

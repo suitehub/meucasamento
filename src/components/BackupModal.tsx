@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppState } from '../types';
 import { DEFAULTS, STORAGE_KEY } from '../utils/helpers';
-import { Download, Upload, Copy, Check, X, FileJson, Database, RefreshCw, HardDrive } from 'lucide-react';
+import { Download, Upload, Copy, Check, X, FileJson, Database, RefreshCw, HardDrive, Cloud, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
+import { User } from 'firebase/auth';
 
 interface BackupModalProps {
   isOpen: boolean;
   onClose: () => void;
   state: AppState;
   onImportState: (importedState: AppState) => void;
+  user?: User | null;
 }
 
 export const BackupModal: React.FC<BackupModalProps> = ({
@@ -16,6 +18,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
   onClose,
   state,
   onImportState,
+  user,
 }) => {
   const [jsonText, setJsonText] = useState('');
   const [copied, setCopied] = useState(false);
@@ -156,6 +159,23 @@ export const BackupModal: React.FC<BackupModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Cloud Status Notice */}
+        {user ? (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-2 text-xs text-emerald-800">
+            <Cloud className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold">Sincronização em Nuvem Ativa:</span> Seus dados estão salvos no Firebase para <strong>{user.email}</strong>. Qualquer importação nesta tela atualizará automaticamente todos os seus dispositivos conectados.
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-2 text-xs text-amber-800">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold">Atenção para ver no Celular:</span> Para ver as alterações no celular, clique em <strong>"Entrar com Google"</strong> no menu superior usando a <u>mesma conta Google</u> tanto no PC quanto no celular.
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

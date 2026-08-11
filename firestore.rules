@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net - Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidConfig(config) {
+      return config is map &&
+        config.goal is number &&
+        config.initial is number &&
+        config.start is string && config.start.size() <= 10 &&
+        config.wedding is string && config.wedding.size() <= 10 &&
+        config.rate1 is number &&
+        config.rate2 is number &&
+        config.yellowPct is number &&
+        config.guests is number;
+    }
+
+    function isValidWedding(data, userId) {
+      return data.userId == userId &&
+        data.userId == request.auth.uid &&
+        data.keys().hasAll(['userId', 'config', 'entries', 'budgets']) &&
+        isValidConfig(data.config) &&
+        data.entries is map &&
+        data.budgets is list &&
+        data.budgets.size() <= 500;
+    }
+
+    // Collection: /weddings/{userId}
+    match /weddings/{userId} {
+      allow get, delete: if isOwner(userId) && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create, update: if isOwner(userId) && isValidId(userId) && isValidWedding(incoming(), userId);
+    }
+  }
+}
