@@ -1,0 +1,9 @@
+{
+  "short_name": "Meu Casamento",
+  "name": "Meu Casamento - Gestão Financeira",
+  "icons": [],
+  "start_url": ".",
+  "background_color": "#fff7f8",
+  "theme_color": "#e91e63",
+  "display": "standalone"
+}
